@@ -1,8 +1,12 @@
 import os
+import re
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
 from .core import convert
+
+
+HEX_COLOR_RE = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
 
 
 class MazeIntGUI(tk.Tk):
@@ -126,7 +130,19 @@ class MazeIntGUI(tk.Tk):
             messagebox.showerror("Missing image", "Please choose a logo image first.")
             return
 
+        color_value = self.thread_color.get().strip()
+        if color_value and not HEX_COLOR_RE.match(color_value):
+            messagebox.showerror("Invalid thread color", "Please enter a valid hex color such as #1f2937 or #fff.")
+            return
+
         out_dir = self.output_dir.get().strip() or os.getcwd()
+        if not os.path.isdir(out_dir):
+            try:
+                os.makedirs(out_dir, exist_ok=True)
+            except OSError as exc:
+                messagebox.showerror("Output folder error", f"Unable to create the output folder:\n{exc}")
+                return
+
         out_name = self.output_name.get().strip() or "mazeint_logo"
         out_prefix = os.path.join(out_dir, out_name)
 
@@ -143,7 +159,7 @@ class MazeIntGUI(tk.Tk):
                 running_stitch_len_mm=float(self.running_stitch_len_mm.get()),
                 underlay=bool(self.underlay.get()),
                 use_exact_size=bool(self.use_exact_size.get()),
-                thread_colors=[self.thread_color.get()],
+                thread_colors=[color_value or "#1f2937"],
             )
             self.log_message("Done.")
             self.log_message(f"Files: {', '.join(paths)}")
@@ -151,7 +167,7 @@ class MazeIntGUI(tk.Tk):
             preview_path = [p for p in paths if p.endswith("_preview.png")]
             if preview_path:
                 self._show_preview(preview_path[0])
-            messagebox.showinfo("Success", f"Embroidery files generated:\n{chr(10).join(paths)}")
+            messagebox.showinfo("Success", "Embroidery files generated successfully and centered for stitching.\n\n" + "\n".join(paths))
         except Exception as exc:  # pragma: no cover - UI shows message
             self.log_message(f"Error: {exc}")
             messagebox.showerror("Generation failed", str(exc))
