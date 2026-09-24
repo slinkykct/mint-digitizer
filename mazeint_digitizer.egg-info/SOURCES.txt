@@ -3,6 +3,7 @@ pyproject.toml
 mazeint_digitizer/__init__.py
 mazeint_digitizer/core.py
 mazeint_digitizer/gui.py
+mazeint_digitizer/update.py
 mazeint_digitizer.egg-info/PKG-INFO
 mazeint_digitizer.egg-info/SOURCES.txt
 mazeint_digitizer.egg-info/dependency_links.txt

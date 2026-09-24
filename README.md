@@ -30,6 +30,51 @@ python3 install.py
 
 This will create a local environment at `.mazeint_venv` and install the project with all required dependencies.
 
+### Upgrade an existing Linux / ChromeOS install
+
+Run this one command from any terminal:
+
+```bash
+cd /home/mint/websites/mazeint_embroidery_final && git pull --ff-only origin main && . .mazeint_venv/bin/activate && python -m pip install -e . && ./mazeint-update
+```
+
+For a clone stored somewhere else, replace the path after `cd` with your project folder.
+
+### Upgrade an existing Windows install
+
+Run this from PowerShell in the project folder:
+
+```powershell
+git pull --ff-only origin main; .\.mazeint_venv\Scripts\Activate.ps1; python -m pip install -e .; mazeint-update
+```
+
+If PowerShell blocks local scripts, run the same command from Command Prompt instead:
+
+```bat
+git pull --ff-only origin main && .mazeint_venv\Scripts\activate.bat && python -m pip install -e . && mazeint-update
+```
+
+### Next release notes
+
+Copy and paste this section into the GitHub release description when publishing version `0.1.1`:
+
+```markdown
+## MazeInt v0.1.1
+
+- Improved installer stability and self-healing setup
+- Better Linux, ChromeOS, and Windows installation flow
+- Added a branded splash screen, app icon, and polished GUI details
+- Improved embroidery centering and alignment for cleaner output
+- Added updater support for checking and applying the latest release
+- Added validation to reduce invalid exports and file corruption risks
+
+### Install
+
+- Linux / ChromeOS: `python3 install.py`
+- Windows: `py install.py`
+- Launch: `./run_gui.sh` or `run_gui.bat`
+```
+
 ### Launch after installation
 
 #### Linux / ChromeOS
@@ -157,6 +202,9 @@ For best results, prepare the logo as:
 - transparent or plain background
 - solid fills rather than grayscale shading
 - consistent stroke thickness
+
+The GUI also supports an optional text layer. Enter wording, choose a font style
+and size, select its thread color, and preview it before exporting the embroidery files.
 
 ## CLI example
 

@@ -7,6 +7,7 @@ import os
 import re
 import subprocess
 import sys
+import urllib.error
 import urllib.request
 import webbrowser
 from pathlib import Path
@@ -90,6 +91,22 @@ def check_for_updates() -> dict:
     current = get_local_version()
     try:
         latest_tag, release_url, _ = get_latest_release_info()
+    except urllib.error.HTTPError as exc:
+        if exc.code == 404:
+            return {
+                "current_version": current,
+                "latest_version": current,
+                "has_update": False,
+                "release_url": f"https://github.com/{REPO}/releases",
+                "error": "No GitHub release has been published yet. You can continue using this installed version.",
+            }
+        return {
+            "current_version": current,
+            "latest_version": current,
+            "has_update": False,
+            "release_url": f"https://github.com/{REPO}/releases",
+            "error": "Unable to reach the GitHub release API right now.",
+        }
     except Exception:
         return {
             "current_version": current,

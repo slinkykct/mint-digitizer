@@ -2,7 +2,7 @@ import os
 import re
 import tkinter as tk
 from pathlib import Path
-from tkinter import filedialog, messagebox, ttk
+from tkinter import colorchooser, filedialog, messagebox, ttk
 
 from .core import convert
 from .update import check_for_updates, download_latest_windows_release, open_latest_release, perform_update
@@ -15,8 +15,8 @@ class MazeIntGUI(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("MazeInt Logo Digitizer")
-        self.geometry("920x700")
-        self.minsize(820, 560)
+        self.geometry("1120x760")
+        self.minsize(900, 620)
         self.configure(bg="#0f172a")
         self._apply_theme()
         self._set_window_icon()
@@ -34,6 +34,13 @@ class MazeIntGUI(tk.Tk):
         self.underlay = tk.BooleanVar(value=True)
         self.use_exact_size = tk.BooleanVar(value=True)
         self.thread_color = tk.StringVar(value="#1f2937")
+        self.text_value = tk.StringVar(value="")
+        self.text_font = tk.StringVar(value="Sans")
+        self.text_size_px = tk.IntVar(value=42)
+        self.text_color = tk.StringVar(value="#111827")
+        self.palette_colors = [tk.StringVar(value=color) for color in ("#1f2937", "#e11d48", "#0f766e", "#f59e0b")]
+        self.palette_enabled = [tk.BooleanVar(value=index == 0) for index in range(4)]
+        self.palette_buttons = []
 
         self._build_widgets()
 
@@ -56,6 +63,7 @@ class MazeIntGUI(tk.Tk):
         style.configure("Card.TFrame", background="#111827")
         style.configure("TLabel", background="#0f172a", foreground="#e2e8f0", font=("Segoe UI", 10))
         style.configure("Header.TLabel", background="#111827", foreground="#f8fafc", font=("Segoe UI", 11, "bold"))
+        style.configure("Section.TLabel", background="#111827", foreground="#f8fafc", font=("Segoe UI", 11, "bold"))
         style.configure("TEntry", fieldbackground="#f8fafc", foreground="#0f172a", font=("Segoe UI", 10))
         style.configure("TCheckbutton", background="#0f172a", foreground="#e2e8f0", font=("Segoe UI", 10))
         style.configure("TButton", padding=(12, 8), font=("Segoe UI", 10, "bold"))
@@ -80,18 +88,20 @@ class MazeIntGUI(tk.Tk):
         banner.pack(side="right", padx=(0, 12), pady=10)
         self.version.set("v0.1.0")
         self.release_banner.set("Release v0.1.0")
-        ttk.Label(top, text="Image file", font=("Segoe UI", 10, "bold")).pack(anchor="w", pady=(8, 0))
+        ttk.Label(top, text="1. Choose artwork", style="Section.TLabel").pack(anchor="w", pady=(8, 0))
         row1 = ttk.Frame(top)
         row1.pack(fill="x", pady=(6, 8))
         ttk.Entry(row1, textvariable=self.image_path).pack(side="left", fill="x", expand=True)
         ttk.Button(row1, text="Browse", command=self.choose_image).pack(side="left", padx=(8, 0))
 
-        settings = ttk.Frame(main, style="Card.TFrame")
-        settings.pack(fill="x", pady=(8, 0))
-        ttk.Label(settings, text="Output settings", font=("Segoe UI", 10, "bold")).pack(anchor="w", padx=12, pady=(12, 0))
+        content = ttk.Frame(main)
+        content.pack(fill="both", expand=True, pady=(8, 0))
+        settings = ttk.Frame(content, style="Card.TFrame", padding=12)
+        settings.pack(side="left", fill="y", padx=(0, 10))
+        ttk.Label(settings, text="2. Set output", style="Section.TLabel").pack(anchor="w")
 
-        grid = ttk.Frame(settings, padding=(12, 8, 12, 12))
-        grid.pack(fill="x")
+        grid = ttk.Frame(settings)
+        grid.pack(fill="x", pady=(8, 0))
         opts = [
             ("Output directory", self.output_dir, "dir"),
             ("Output name", self.output_name, "text"),
@@ -109,27 +119,103 @@ class MazeIntGUI(tk.Tk):
                 ttk.Entry(grid, textvariable=variable).grid(row=i, column=1, sticky="ew", pady=5)
                 ttk.Button(grid, text="Browse", command=self.choose_output_dir).grid(row=i, column=2, padx=(8, 0), pady=5)
             else:
-                ttk.Entry(grid, textvariable=variable).grid(row=i, column=1, sticky="ew", pady=5)
+                ttk.Entry(grid, textvariable=variable, width=18).grid(row=i, column=1, sticky="ew", pady=5)
             grid.columnconfigure(1, weight=1)
 
-        tools = ttk.Frame(main)
-        tools.pack(fill="x", pady=(4, 8))
+        ttk.Separator(settings).pack(fill="x", pady=12)
+        ttk.Label(settings, text="Text layer", style="Section.TLabel").pack(anchor="w")
+        ttk.Label(settings, text="Add optional lettering to the embroidery design.", wraplength=255).pack(anchor="w", pady=(4, 6))
+        text_entry = ttk.Entry(settings, textvariable=self.text_value, width=28)
+        text_entry.pack(fill="x", pady=(0, 6))
+        text_entry.bind("<KeyRelease>", lambda _event: self._refresh_text_preview())
+        text_controls = ttk.Frame(settings)
+        text_controls.pack(fill="x")
+        ttk.Label(text_controls, text="Font").pack(side="left")
+        font_box = ttk.Combobox(text_controls, textvariable=self.text_font, values=("Sans", "Serif", "Script", "Bold"), state="readonly", width=10)
+        font_box.pack(side="left", padx=(6, 8))
+        font_box.bind("<<ComboboxSelected>>", lambda _event: self._refresh_text_preview())
+        ttk.Label(text_controls, text="Size").pack(side="left")
+        size_box = ttk.Spinbox(text_controls, from_=12, to=160, textvariable=self.text_size_px, width=5, command=self._refresh_text_preview)
+        size_box.pack(side="left", padx=(6, 0))
+        size_box.bind("<KeyRelease>", lambda _event: self._refresh_text_preview())
+        text_color_button = tk.Button(settings, text="Text color", anchor="w", command=self._edit_text_color, relief="flat")
+        text_color_button.pack(fill="x", pady=(8, 0))
+        self.text_color_button = text_color_button
+        self._update_text_color_button()
+
+        ttk.Separator(settings).pack(fill="x", pady=12)
+        ttk.Label(settings, text="Thread palette", style="Section.TLabel").pack(anchor="w")
+        ttk.Label(settings, text="Toggle colors on, then click a swatch to edit it.", wraplength=255).pack(anchor="w", pady=(4, 8))
+        self._build_palette(settings)
+
+        tools = ttk.Frame(settings)
+        tools.pack(fill="x", pady=(12, 8))
         ttk.Checkbutton(tools, text="Use source image size as exact working size", variable=self.use_exact_size).pack(anchor="w")
         ttk.Checkbutton(tools, text="Use underlay for fills", variable=self.underlay).pack(anchor="w")
 
-        buttons = ttk.Frame(main)
-        buttons.pack(fill="x", pady=(0, 10))
-        ttk.Button(buttons, text="Generate embroidery files", command=self.run_digitize, style="Accent.TButton").pack(side="left", fill="x", expand=True)
-        ttk.Button(buttons, text="Check for updates", command=self.check_for_updates).pack(side="left", padx=(10, 0), fill="x")
-        ttk.Button(buttons, text="Download Windows release", command=self.download_windows_release).pack(side="left", padx=(10, 0), fill="x")
-
-        preview_frame = ttk.LabelFrame(main, text="Preview")
+        preview_column = ttk.Frame(content)
+        preview_column.pack(side="left", fill="both", expand=True)
+        preview_frame = ttk.Frame(preview_column, style="Card.TFrame", padding=12)
         preview_frame.pack(fill="both", expand=True)
-        self.preview_label = ttk.Label(preview_frame, text="No preview yet", anchor="center")
-        self.preview_label.pack(fill="both", expand=True, padx=12, pady=12)
+        ttk.Label(preview_frame, text="3. Preview and export", style="Section.TLabel").pack(anchor="w")
+        self.preview_label = ttk.Label(preview_frame, text="Choose an image to preview it", anchor="center")
+        self.preview_label.pack(fill="both", expand=True, padx=4, pady=12)
 
-        self.log = tk.Text(main, height=8, wrap="word", state="disabled")
-        self.log.pack(fill="both", expand=True, pady=(8, 0))
+        buttons = ttk.Frame(preview_column)
+        buttons.pack(fill="x", pady=(10, 0))
+        ttk.Button(buttons, text="Generate embroidery files", command=self.run_digitize, style="Accent.TButton").pack(side="left", fill="x", expand=True)
+        ttk.Button(buttons, text="Check for updates", command=self.check_for_updates).pack(side="left", padx=(10, 0))
+        ttk.Button(buttons, text="Windows release", command=self.download_windows_release).pack(side="left", padx=(10, 0))
+
+        self.log = tk.Text(preview_column, height=5, wrap="word", state="disabled", background="#111827", foreground="#cbd5e1", relief="flat")
+        self.log.pack(fill="x", pady=(10, 0))
+
+    def _build_palette(self, parent):
+        for index, (color_var, enabled_var) in enumerate(zip(self.palette_colors, self.palette_enabled), start=1):
+            row = ttk.Frame(parent)
+            row.pack(fill="x", pady=3)
+            ttk.Checkbutton(row, text=f"Color {index}", variable=enabled_var, command=self._refresh_palette_preview).pack(side="left")
+            swatch = tk.Button(row, width=3, relief="flat", command=lambda value=color_var: self._edit_color(value))
+            swatch.pack(side="right", padx=(8, 0))
+            self.palette_buttons.append(swatch)
+            color_var.trace_add("write", lambda *_: self._refresh_palette_preview())
+            self._update_swatch(index - 1)
+
+    def _edit_color(self, color_var):
+        chosen = colorchooser.askcolor(color_var.get(), title="Choose thread color")[1]
+        if chosen:
+            color_var.set(chosen.lower())
+
+    def _update_swatch(self, index):
+        if index < len(self.palette_buttons):
+            color = self.palette_colors[index].get()
+            self.palette_buttons[index].configure(bg=color if HEX_COLOR_RE.match(color) else "#64748b")
+
+    def _active_colors(self):
+        colors = [var.get().strip() for var, enabled in zip(self.palette_colors, self.palette_enabled) if enabled.get()]
+        return colors or ["#1f2937"]
+
+    def _update_text_color_button(self):
+        color = self.text_color.get()
+        self.text_color_button.configure(bg=color if HEX_COLOR_RE.match(color) else "#64748b")
+
+    def _edit_text_color(self):
+        chosen = colorchooser.askcolor(self.text_color.get(), title="Choose text thread color")[1]
+        if chosen:
+            self.text_color.set(chosen.lower())
+            self._update_text_color_button()
+            self._refresh_text_preview()
+
+    def _refresh_text_preview(self):
+        self._update_text_color_button()
+        if self.image_path.get().strip():
+            self._show_preview(self.image_path.get().strip())
+
+    def _refresh_palette_preview(self):
+        for index in range(len(self.palette_buttons)):
+            self._update_swatch(index)
+        if self.image_path.get().strip():
+            self._show_preview(self.image_path.get().strip())
 
     def _show_splash(self):
         splash = tk.Toplevel(self)
@@ -168,16 +254,40 @@ class MazeIntGUI(tk.Tk):
             if img is None:
                 self.preview_label.config(text="Preview unavailable")
                 return
+            _, mask = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            if (mask == 255).mean() > 0.5:
+                mask = cv2.bitwise_not(mask)
+            preview = cv2.cvtColor(mask, cv2.COLOR_GRAY2RGB)
+            preview[mask == 255] = (248, 250, 252)
+            contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            colors = self._active_colors()
+            text = self.text_value.get().strip()
+            text_hex = self.text_color.get().strip()
+            if text and not HEX_COLOR_RE.match(text_hex):
+                self.preview_label.config(text="Enter a valid text color")
+                return
+            for index, contour in enumerate(contours):
+                hex_color = colors[index % len(colors)].lstrip("#")
+                rgb = tuple(int(hex_color[pos:pos + 2], 16) for pos in (0, 2, 4))
+                cv2.drawContours(preview, [contour], -1, rgb, 2)
+            if text:
+                from .core import render_text_mask
+                text_mask = render_text_mask(img.shape, text, self.text_font.get(), self.text_size_px.get())
+                text_contours, _ = cv2.findContours(text_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                text_hex = text_hex.lstrip("#")
+                text_rgb = tuple(int(text_hex[pos:pos + 2], 16) for pos in (0, 2, 4))
+                for contour in text_contours:
+                    cv2.drawContours(preview, [contour], -1, text_rgb, 2)
             h, w = img.shape[:2]
             max_dim = 300
             scale = max_dim / max(h, w)
             target_h = max(1, int(h * scale))
             target_w = max(1, int(w * scale))
-            resized = cv2.resize(img, (target_w, target_h), interpolation=cv2.INTER_AREA)
+            resized = cv2.resize(preview, (target_w, target_h), interpolation=cv2.INTER_AREA)
             _, encoded = cv2.imencode(".png", resized)
             import base64
             b64 = base64.b64encode(encoded).decode()
-            self.preview_image = tk.PhotoImage(data=f"iVB64,{b64}")
+            self.preview_image = tk.PhotoImage(data=b64)
             self.preview_label.config(image=self.preview_image, text="")
         except Exception:
             self.preview_label.config(text="Preview unavailable")
@@ -235,9 +345,14 @@ class MazeIntGUI(tk.Tk):
             messagebox.showerror("Missing image", "Please choose a logo image first.")
             return
 
-        color_value = self.thread_color.get().strip()
-        if color_value and not HEX_COLOR_RE.match(color_value):
-            messagebox.showerror("Invalid thread color", "Please enter a valid hex color such as #1f2937 or #fff.")
+        colors = self._active_colors()
+        if any(not HEX_COLOR_RE.match(color) for color in colors):
+            messagebox.showerror("Invalid thread color", "Please correct the selected palette colors before exporting.")
+            return
+        text = self.text_value.get().strip()
+        text_color = self.text_color.get().strip()
+        if text and not HEX_COLOR_RE.match(text_color):
+            messagebox.showerror("Invalid text color", "Please choose a valid text color before exporting.")
             return
 
         out_dir = self.output_dir.get().strip() or os.getcwd()
@@ -264,7 +379,11 @@ class MazeIntGUI(tk.Tk):
                 running_stitch_len_mm=float(self.running_stitch_len_mm.get()),
                 underlay=bool(self.underlay.get()),
                 use_exact_size=bool(self.use_exact_size.get()),
-                thread_colors=[color_value or "#1f2937"],
+                thread_colors=colors,
+                text=text,
+                text_font=self.text_font.get(),
+                text_size_px=int(self.text_size_px.get()),
+                text_color=text_color if text else None,
             )
             self.log_message("Done.")
             self.log_message(f"Files: {', '.join(paths)}")

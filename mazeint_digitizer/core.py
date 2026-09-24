@@ -24,6 +24,30 @@ def load_mask(image_path):
     return mask
 
 
+TEXT_FONTS = {
+    "Sans": cv2.FONT_HERSHEY_SIMPLEX,
+    "Serif": cv2.FONT_HERSHEY_COMPLEX,
+    "Script": cv2.FONT_HERSHEY_SCRIPT_SIMPLEX,
+    "Bold": cv2.FONT_HERSHEY_DUPLEX,
+}
+
+
+def render_text_mask(shape, text, font_name="Sans", size_px=48):
+    text = str(text or "").strip()
+    mask = np.zeros(shape[:2], dtype=np.uint8)
+    if not text:
+        return mask
+    font = TEXT_FONTS.get(font_name, TEXT_FONTS["Sans"])
+    scale = max(0.2, float(size_px) / 42.0)
+    thickness = max(1, int(round(scale * 1.5)))
+    (text_width, text_height), baseline = cv2.getTextSize(text, font, scale, thickness)
+    x = max(0, (shape[1] - text_width) // 2)
+    y = max(text_height + baseline, shape[0] - max(8, shape[0] // 12))
+    y = min(shape[0] - max(1, baseline), y)
+    cv2.putText(mask, text, (x, y), font, scale, 255, thickness, cv2.LINE_AA)
+    return mask
+
+
 def mask_to_polygons(mask, min_area_px=25):
     contours, hierarchy = cv2.findContours(mask, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
     if hierarchy is None:
@@ -255,8 +279,10 @@ def generate_preview(mask, outpath, thread_colors=None):
     binary = (mask > 0).astype(np.uint8) * 255
     contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     if contours:
-        color = hex_to_bgr((normalize_thread_colors(thread_colors or ["#000000"]))[0])
-        cv2.drawContours(preview, contours, -1, color, 1)
+        colors = normalize_thread_colors(thread_colors or ["#000000"])
+        for index, contour in enumerate(contours):
+            color = hex_to_bgr(colors[index % len(colors)])
+            cv2.drawContours(preview, [contour], -1, color, 2)
     ok = cv2.imwrite(outpath, preview)
     if not ok:
         raise ValueError(f"Could not write preview image to {outpath}")
@@ -266,7 +292,7 @@ def generate_preview(mask, outpath, thread_colors=None):
 def build_pattern(mask, out_width_mm=100.0, row_spacing_mm=0.35, angle_deg=45.0,
                    thin_threshold_mm=1.4, running_stitch_len_mm=2.2,
                    underlay=True, underlay_inset_mm=0.4, thread_colors=None,
-                   use_exact_size=False):
+                   use_exact_size=False, text_mask=None, text_color=None):
     h, w = mask.shape
     if use_exact_size:
         out_width_mm = max(10.0, float(w) / 10.0)
@@ -277,12 +303,19 @@ def build_pattern(mask, out_width_mm=100.0, row_spacing_mm=0.35, angle_deg=45.0,
     running_step_px = running_stitch_len_mm * px_per_mm
     underlay_inset_px = underlay_inset_mm * px_per_mm
 
-    polys = mask_to_polygons(mask)
+    text_mask = text_mask if text_mask is not None else np.zeros_like(mask)
+    logo_mask = cv2.bitwise_and(mask, cv2.bitwise_not(text_mask))
+    polys = [(poly, cnt, hier, False) for poly, cnt, hier in mask_to_polygons(logo_mask)]
+    text_polys = [(poly, cnt, hier, True) for poly, cnt, hier in mask_to_polygons(text_mask)]
+    polys.extend(text_polys)
     if not polys:
         raise ValueError("No shapes found in image after thresholding.")
 
     pattern = EmbPattern()
-    apply_thread_colors(pattern, thread_colors)
+    colors = normalize_thread_colors(thread_colors)
+    if text_polys and text_color:
+        colors.append(text_color)
+    apply_thread_colors(pattern, colors)
     n_thin = n_thick = 0
 
     def emit_path(path_px):
@@ -294,9 +327,15 @@ def build_pattern(mask, out_width_mm=100.0, row_spacing_mm=0.35, angle_deg=45.0,
             pattern.add_stitch_absolute(STITCH, x * px_to_units, y * px_to_units)
 
     first_shape = True
-    for poly, cnt, hier in polys:
+    text_started = False
+    for poly, cnt, hier, is_text in polys:
         local_mask, ox, oy = polygon_to_local_mask(poly)
         width_px = estimate_max_width_px(local_mask)
+        if is_text and not text_started:
+            if not first_shape:
+                pattern.add_command(TRIM)
+            pattern.color_change()
+            text_started = True
         if not first_shape:
             pattern.add_command(TRIM)
         first_shape = False
@@ -332,6 +371,10 @@ def build_pattern(mask, out_width_mm=100.0, row_spacing_mm=0.35, angle_deg=45.0,
 def convert(image_path, out_prefix, **kwargs):
     mask = load_mask(image_path)
     thread_colors = kwargs.pop("thread_colors", None)
+    text = kwargs.pop("text", "")
+    text_font = kwargs.pop("text_font", "Sans")
+    text_size_px = kwargs.pop("text_size_px", 48)
+    text_color = kwargs.pop("text_color", None)
     preview_path = kwargs.pop("preview_path", None)
 
     if kwargs.get("use_exact_size") is None:
@@ -343,7 +386,15 @@ def convert(image_path, out_prefix, **kwargs):
     if out_dir:
         os.makedirs(out_dir, exist_ok=True)
 
-    pattern, n_thin, n_thick = build_pattern(mask, thread_colors=thread_colors, **kwargs)
+    text_mask = render_text_mask(mask.shape, text, text_font, text_size_px)
+    combined_mask = cv2.bitwise_or(mask, text_mask)
+    pattern, n_thin, n_thick = build_pattern(
+        combined_mask,
+        thread_colors=thread_colors,
+        text_mask=text_mask if text else None,
+        text_color=text_color,
+        **kwargs,
+    )
     formats = {
         "dst": pyembroidery.write_dst,
         "pes": pyembroidery.write_pes,
@@ -359,7 +410,7 @@ def convert(image_path, out_prefix, **kwargs):
         paths.append(outpath)
 
     final_preview = preview_path or f"{out_prefix}_preview.png"
-    generate_preview(mask, final_preview, thread_colors)
+    generate_preview(combined_mask, final_preview, list(thread_colors or []) + ([text_color] if text else []))
     paths.append(final_preview)
     return paths, pattern, n_thin, n_thick
 
