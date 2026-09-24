@@ -166,7 +166,33 @@ def create_launchers() -> None:
     )
     os.chmod(update_launcher, 0o755)
 
+    desktop_dir = Path.home() / ".local" / "share" / "applications"
+    desktop_dir.mkdir(parents=True, exist_ok=True)
+    icon_dir = Path.home() / ".local" / "share" / "icons" / "hicolor" / "scalable" / "apps"
+    icon_dir.mkdir(parents=True, exist_ok=True)
+    icon_source = ROOT / "assets" / "mazeint-digitizer.svg"
+    icon_target = icon_dir / "mazeint-digitizer.svg"
+    if icon_source.exists():
+        icon_target.write_text(icon_source.read_text(encoding="utf-8"), encoding="utf-8")
+
+    desktop_file = desktop_dir / "mazeint-digitizer.desktop"
+    desktop_file.write_text(
+        "[Desktop Entry]\n"
+        "Name=MazeInt Digitizer\n"
+        "GenericName=Embroidery Digitizer\n"
+        "Comment=Create embroidery files from flat logos and simple artwork\n"
+        "Exec=\"" + str(ROOT / "run_gui.sh") + "\"\n"
+        "Terminal=false\n"
+        "Type=Application\n"
+        "Categories=Graphics;Office;\n"
+        "Icon=mazeint-digitizer\n"
+        "StartupNotify=true\n",
+        encoding="utf-8",
+    )
+
     print(f"Launchers created: {launcher}, {cli_launcher}, {update_launcher}")
+    print(f"Desktop launcher created: {desktop_file}")
+    print(f"Icon installed: {icon_target}")
 
 
 def install(start_gui: bool = False) -> int:

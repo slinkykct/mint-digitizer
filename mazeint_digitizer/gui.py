@@ -4,7 +4,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
 from .core import convert
-from .update import check_for_updates, perform_update
+from .update import check_for_updates, download_latest_windows_release, open_latest_release, perform_update
 
 
 HEX_COLOR_RE = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
@@ -20,6 +20,8 @@ class MazeIntGUI(tk.Tk):
         self.image_path = tk.StringVar(value="")
         self.output_dir = tk.StringVar(value=os.getcwd())
         self.output_name = tk.StringVar(value="mazeint_logo")
+        self.version = tk.StringVar(value="v0.1.0")
+        self.release_banner = tk.StringVar(value="Release v0.1.0")
         self.width_mm = tk.DoubleVar(value=100.0)
         self.row_spacing_mm = tk.DoubleVar(value=1.2)
         self.angle_deg = tk.DoubleVar(value=45.0)
@@ -37,7 +39,15 @@ class MazeIntGUI(tk.Tk):
 
         top = ttk.Frame(main)
         top.pack(fill="x")
-        ttk.Label(top, text="Image file", font=("Segoe UI", 10, "bold")).pack(anchor="w")
+        header = ttk.Frame(top)
+        header.pack(fill="x")
+        ttk.Label(header, text="MazeInt Digitizer", font=("Segoe UI", 10, "bold")).pack(side="left")
+        banner = ttk.Frame(header)
+        banner.pack(side="right")
+        ttk.Label(banner, textvariable=self.release_banner, foreground="#ffffff", background="#1d4ed8", padding=(10, 4), font=("Segoe UI", 9, "bold")).pack()
+        self.version.set("v0.1.0")
+        self.release_banner.set("Release v0.1.0")
+        ttk.Label(top, text="Image file", font=("Segoe UI", 10, "bold")).pack(anchor="w", pady=(8, 0))
         row1 = ttk.Frame(top)
         row1.pack(fill="x", pady=(6, 8))
         ttk.Entry(row1, textvariable=self.image_path).pack(side="left", fill="x", expand=True)
@@ -78,6 +88,7 @@ class MazeIntGUI(tk.Tk):
         buttons.pack(fill="x", pady=(0, 10))
         ttk.Button(buttons, text="Generate embroidery files", command=self.run_digitize, style="Accent.TButton").pack(side="left", fill="x", expand=True)
         ttk.Button(buttons, text="Check for updates", command=self.check_for_updates).pack(side="left", padx=(10, 0), fill="x")
+        ttk.Button(buttons, text="Download Windows release", command=self.download_windows_release).pack(side="left", padx=(10, 0), fill="x")
 
         preview_frame = ttk.LabelFrame(main, text="Preview")
         preview_frame.pack(fill="both", expand=True)
@@ -131,24 +142,43 @@ class MazeIntGUI(tk.Tk):
     def check_for_updates(self):
         try:
             info = check_for_updates()
+            self.version.set(info.get("current_version", self.version.get()))
             if info.get("error"):
                 messagebox.showwarning("Update check", info["error"])
                 return
+            current = info.get("current_version", self.version.get())
+            latest = info.get("latest_version", current)
+            self.version.set(current)
+            self.release_banner.set(f"Release {current}")
             if info.get("has_update"):
                 response = messagebox.askyesno(
                     "Update available",
-                    f"A new version is available: {info['current_version']} -> {info['latest_version']}\n\nOpen the release page and update now?",
+                    f"A new version is available: {current} -> {latest}\n\nOpen the release page and update now?",
                 )
                 if response:
                     try:
                         result = perform_update()
+                        self.version.set(result.get("latest_version", current))
+                        self.release_banner.set(f"Release {result.get('latest_version', current)}")
                         messagebox.showinfo("Update complete", result.get("message", "Update complete."))
                     except Exception as exc:
                         messagebox.showerror("Update failed", str(exc))
             else:
-                messagebox.showinfo("Up to date", f"You are already on the latest version: {info.get('current_version', 'unknown')}")
+                self.release_banner.set(f"Release {current}")
+                messagebox.showinfo("Up to date", f"You are already on the latest version: {current}")
         except Exception as exc:
             messagebox.showerror("Update check failed", str(exc))
+
+    def download_windows_release(self):
+        try:
+            file_path = download_latest_windows_release(os.getcwd())
+            messagebox.showinfo("Windows release ready", f"Downloaded to:\n{file_path}\n\nOpen the file to install the latest Windows build.")
+        except Exception as exc:
+            try:
+                url = open_latest_release()
+                messagebox.showinfo("Open GitHub release", f"The latest GitHub release page opened in your browser:\n{url}")
+            except Exception:
+                messagebox.showerror("Windows release unavailable", str(exc))
 
     def run_digitize(self):
         image_file = self.image_path.get().strip()
