@@ -18,6 +18,30 @@ This project converts logo-style artwork into embroidery files such as `.dst`, `
 - Busy mockups or product photos
 - Thin anti-aliased lines unless cleaned up first
 
+## Install from GitHub clone on Linux / ChromeOS
+
+```bash
+git clone https://github.com/slinkykct/mint-digitizer.git
+cd mint-digitizer
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+python -m pip install -e .
+```
+
+Then launch the GUI:
+
+```bash
+mazeint-gui
+```
+
+Or run the CLI directly:
+
+```bash
+mazeint-digitizer your_logo.png output_name --width-mm 100
+```
+
 ## Install on Windows, Linux, or ChromeOS
 
 The easiest and most reliable option is the self-healing installer.
