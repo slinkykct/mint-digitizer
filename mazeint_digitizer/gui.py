@@ -42,6 +42,12 @@ class MazeIntGUI(tk.Tk):
         self.palette_enabled = [tk.BooleanVar(value=index == 0) for index in range(4)]
         self.palette_buttons = []
 
+        self.image_path.trace_add("write", lambda *_: self._refresh_text_preview())
+        self.text_value.trace_add("write", lambda *_: self._refresh_text_preview())
+        self.text_font.trace_add("write", lambda *_: self._refresh_text_preview())
+        self.text_size_px.trace_add("write", lambda *_: self._refresh_text_preview())
+        self.text_color.trace_add("write", lambda *_: self._refresh_text_preview())
+
         self._build_widgets()
 
     def _set_window_icon(self):
