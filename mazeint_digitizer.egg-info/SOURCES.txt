@@ -1,5 +1,4 @@
 README.md
-README.txt
 pyproject.toml
 mazeint_digitizer/__init__.py
 mazeint_digitizer/core.py
