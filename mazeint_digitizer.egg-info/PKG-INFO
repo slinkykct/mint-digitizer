@@ -1,8 +1,19 @@
-# mint-digitizer
+Metadata-Version: 2.4
+Name: mazeint-digitizer
+Version: 0.1.0
+Summary: Cross-platform embroidery digitizer for flat logos and simple artwork
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+Requires-Dist: numpy>=2.0
+Requires-Dist: opencv-contrib-python-headless>=4.9
+Requires-Dist: shapely>=2.0
+Requires-Dist: pyembroidery>=1.5
+Provides-Extra: dev
+Requires-Dist: pytest>=8.0; extra == "dev"
 
-A cross-platform embroidery digitizer for flat logos and simple artwork.
+# MazeInt Embroidery Digitizer
 
-This project converts logo-style artwork into embroidery files such as `.dst`, `.pes`, `.jef`, and `.exp`.
+This project converts a flat logo or clean black-and-white drawing into embroidery files such as `.dst`, `.pes`, `.jef`, and `.exp`.
 
 ## What this is for
 
@@ -16,7 +27,7 @@ This project converts logo-style artwork into embroidery files such as `.dst`, `
 - Photos and realistic shading
 - Dark backgrounds with lighting/shadows
 - Busy mockups or product photos
-- Thin anti-aliased lines unless cleaned up first
+- Thin lines with anti-aliased edges unless cleaned up first
 
 ## Install on Windows, Linux, or ChromeOS
 
@@ -98,7 +109,7 @@ mazeint-digitizer your_logo.png output_name --width-mm 100
 2. Choose any flat logo image.
 3. Adjust width, spacing, and stitch threshold.
 4. Click Generate embroidery files.
-5. Export the generated stitch files to the selected folder.
+5. Exported files are saved to the selected output folder.
 
 For best results, prepare the logo as:
 

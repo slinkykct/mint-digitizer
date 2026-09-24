@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mazeint-digitizer"
+version = "0.1.0"
+description = "Cross-platform embroidery digitizer for flat logos and simple artwork"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "numpy>=2.0",
+    "opencv-contrib-python-headless>=4.9",
+    "shapely>=2.0",
+    "pyembroidery>=1.5",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+mazeint-digitizer = "mazeint_digitizer.core:main"
+mazeint-gui = "mazeint_digitizer.gui:main"
+
+[tool.setuptools]
+packages = ["mazeint_digitizer"]

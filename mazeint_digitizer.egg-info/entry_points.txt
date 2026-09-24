@@ -1,0 +1,3 @@
+[console_scripts]
+mazeint-digitizer = mazeint_digitizer.core:main
+mazeint-gui = mazeint_digitizer.gui:main

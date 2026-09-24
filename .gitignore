@@ -1,0 +1,11 @@
+.venv/
+.mazeint_venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+build/
+dist/
+*.spec
+.DS_Store

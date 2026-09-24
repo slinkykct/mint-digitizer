@@ -1,0 +1,17 @@
+{
+  "name": "MazeInt Embroidery Digitizer",
+  "short_name": "MazeInt",
+  "description": "Offline-ready landing page and download hub for the MazeInt embroidery digitizer.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b1120",
+  "theme_color": "#111827",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

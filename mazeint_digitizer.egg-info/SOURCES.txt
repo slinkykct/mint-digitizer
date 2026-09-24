@@ -1,0 +1,13 @@
+README.md
+README.txt
+pyproject.toml
+mazeint_digitizer/__init__.py
+mazeint_digitizer/core.py
+mazeint_digitizer/gui.py
+mazeint_digitizer.egg-info/PKG-INFO
+mazeint_digitizer.egg-info/SOURCES.txt
+mazeint_digitizer.egg-info/dependency_links.txt
+mazeint_digitizer.egg-info/entry_points.txt
+mazeint_digitizer.egg-info/requires.txt
+mazeint_digitizer.egg-info/top_level.txt
+tests/test_digitizer.py

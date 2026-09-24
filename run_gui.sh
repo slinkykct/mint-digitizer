@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -e
+cd "$(dirname "$0")"
+"$(dirname "$0")/.mazeint_venv/bin/python" -m mazeint_digitizer.gui
