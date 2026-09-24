@@ -1,6 +1,7 @@
 import os
 import re
 import tkinter as tk
+from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
 from .core import convert
@@ -18,6 +19,7 @@ class MazeIntGUI(tk.Tk):
         self.minsize(820, 560)
         self.configure(bg="#0f172a")
         self._apply_theme()
+        self._set_window_icon()
 
         self.image_path = tk.StringVar(value="")
         self.output_dir = tk.StringVar(value=os.getcwd())
@@ -34,6 +36,14 @@ class MazeIntGUI(tk.Tk):
         self.thread_color = tk.StringVar(value="#1f2937")
 
         self._build_widgets()
+
+    def _set_window_icon(self):
+        icon_path = Path(__file__).resolve().parent.parent / "assets" / "mazeint-digitizer.svg"
+        if icon_path.exists():
+            try:
+                self.iconphoto(False, tk.PhotoImage(file=str(icon_path)))
+            except Exception:
+                pass
 
     def _apply_theme(self):
         style = ttk.Style(self)
@@ -57,6 +67,7 @@ class MazeIntGUI(tk.Tk):
         style.configure("TText", background="#0f172a", foreground="#e2e8f0")
 
     def _build_widgets(self):
+        self._show_splash()
         main = ttk.Frame(self, padding=16)
         main.pack(fill="both", expand=True)
 
@@ -119,6 +130,22 @@ class MazeIntGUI(tk.Tk):
 
         self.log = tk.Text(main, height=8, wrap="word", state="disabled")
         self.log.pack(fill="both", expand=True, pady=(8, 0))
+
+    def _show_splash(self):
+        splash = tk.Toplevel(self)
+        splash.overrideredirect(True)
+        splash.geometry("420x200")
+        splash.configure(bg="#0f172a")
+        splash.transient(self)
+        splash.attributes("-topmost", True)
+        splash.geometry(f"+{(self.winfo_screenwidth() // 2) - 210}+{(self.winfo_screenheight() // 2) - 100}")
+
+        icon = tk.Label(splash, text="M", bg="#1d4ed8", fg="#ffffff", font=("Segoe UI", 28, "bold"), width=4, height=2)
+        icon.pack(pady=(32, 12))
+        tk.Label(splash, text="MazeInt Digitizer", bg="#0f172a", fg="#f8fafc", font=("Segoe UI", 18, "bold")).pack()
+        tk.Label(splash, text="Preparing embroidery workspace...", bg="#0f172a", fg="#94a3b8", font=("Segoe UI", 10)).pack(pady=(8, 0))
+        splash.update_idletasks()
+        self.after(900, splash.destroy)
 
     def choose_image(self):
         path = filedialog.askopenfilename(
