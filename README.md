@@ -32,6 +32,22 @@ python -m pip install -e .
 
 Then launch the GUI:
 
+### GitHub Pages / PWA app
+
+The landing page is published at:
+
+```text
+https://slinkykct.github.io/mint-digitizer/
+```
+
+To enable Pages in GitHub:
+1. Open your repo on GitHub
+2. Go to Settings -> Pages
+3. Set source to GitHub Actions
+4. Push the repo and let the Pages workflow deploy the static site
+
+The repo includes a ready-to-use workflow for that deploy.
+
 ```bash
 mazeint-gui
 ```

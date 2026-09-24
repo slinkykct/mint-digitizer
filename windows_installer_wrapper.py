@@ -19,7 +19,7 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
-RELEASE_URL = "https://github.com/your-org/your-repo/releases/latest/download/MazeIntDigitizer-Windows.zip"
+RELEASE_URL = "https://github.com/slinkykct/mint-digitizer/releases/latest/download/MazeIntDigitizer-Windows.zip"
 APP_NAME = "MazeIntDigitizer"
 TARGET_DIR = Path.home() / "AppData" / "Local" / APP_NAME
 
