@@ -145,7 +145,28 @@ def create_launchers() -> None:
         encoding="utf-8",
     )
     os.chmod(launcher, 0o755)
-    print(f"Launcher created: {launcher}")
+
+    cli_launcher = ROOT / "mazeint-cli"
+    cli_launcher.write_text(
+        "#!/usr/bin/env bash\n"
+        "set -e\n"
+        "cd \"$(dirname \"$0\")\"\n"
+        "\"$(dirname \"$0\")/.mazeint_venv/bin/python\" -m mazeint_digitizer.core \"$@\"\n",
+        encoding="utf-8",
+    )
+    os.chmod(cli_launcher, 0o755)
+
+    update_launcher = ROOT / "mazeint-update"
+    update_launcher.write_text(
+        "#!/usr/bin/env bash\n"
+        "set -e\n"
+        "cd \"$(dirname \"$0\")\"\n"
+        "\"$(dirname \"$0\")/.mazeint_venv/bin/python\" -m mazeint_digitizer.update \"$@\"\n",
+        encoding="utf-8",
+    )
+    os.chmod(update_launcher, 0o755)
+
+    print(f"Launchers created: {launcher}, {cli_launcher}, {update_launcher}")
 
 
 def install(start_gui: bool = False) -> int:

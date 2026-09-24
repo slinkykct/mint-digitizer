@@ -4,6 +4,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
 from .core import convert
+from .update import check_for_updates, perform_update
 
 
 HEX_COLOR_RE = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
@@ -73,7 +74,10 @@ class MazeIntGUI(tk.Tk):
         ttk.Checkbutton(tools, text="Use source image size as exact working size", variable=self.use_exact_size).pack(anchor="w")
         ttk.Checkbutton(tools, text="Use underlay for fills", variable=self.underlay).pack(anchor="w")
 
-        ttk.Button(main, text="Generate embroidery files", command=self.run_digitize, style="Accent.TButton").pack(fill="x", pady=(0, 10))
+        buttons = ttk.Frame(main)
+        buttons.pack(fill="x", pady=(0, 10))
+        ttk.Button(buttons, text="Generate embroidery files", command=self.run_digitize, style="Accent.TButton").pack(side="left", fill="x", expand=True)
+        ttk.Button(buttons, text="Check for updates", command=self.check_for_updates).pack(side="left", padx=(10, 0), fill="x")
 
         preview_frame = ttk.LabelFrame(main, text="Preview")
         preview_frame.pack(fill="both", expand=True)
@@ -123,6 +127,28 @@ class MazeIntGUI(tk.Tk):
         self.log.insert(tk.END, text + "\n")
         self.log.configure(state="disabled")
         self.log.see(tk.END)
+
+    def check_for_updates(self):
+        try:
+            info = check_for_updates()
+            if info.get("error"):
+                messagebox.showwarning("Update check", info["error"])
+                return
+            if info.get("has_update"):
+                response = messagebox.askyesno(
+                    "Update available",
+                    f"A new version is available: {info['current_version']} -> {info['latest_version']}\n\nOpen the release page and update now?",
+                )
+                if response:
+                    try:
+                        result = perform_update()
+                        messagebox.showinfo("Update complete", result.get("message", "Update complete."))
+                    except Exception as exc:
+                        messagebox.showerror("Update failed", str(exc))
+            else:
+                messagebox.showinfo("Up to date", f"You are already on the latest version: {info.get('current_version', 'unknown')}")
+        except Exception as exc:
+            messagebox.showerror("Update check failed", str(exc))
 
     def run_digitize(self):
         image_file = self.image_path.get().strip()

@@ -21,6 +21,7 @@ dev = ["pytest>=8.0"]
 [project.scripts]
 mazeint-digitizer = "mazeint_digitizer.core:main"
 mazeint-gui = "mazeint_digitizer.gui:main"
+mazeint-update = "mazeint_digitizer.update:main"
 
 [tool.setuptools]
 packages = ["mazeint_digitizer"]
