@@ -8,6 +8,7 @@ import re
 import subprocess
 import sys
 import urllib.request
+import webbrowser
 from pathlib import Path
 from typing import Optional, Tuple
 
@@ -48,7 +49,7 @@ def get_local_version() -> str:
     return "0.0.0"
 
 
-def get_latest_release_info() -> tuple[str, str]:
+def get_latest_release_info() -> tuple[str, str, Optional[str]]:
     req = urllib.request.Request(
         f"{GITHUB_API}/releases/latest",
         headers={"Accept": "application/vnd.github+json", "User-Agent": "MazeInt-Updater"},
@@ -57,13 +58,38 @@ def get_latest_release_info() -> tuple[str, str]:
         payload = json.loads(resp.read().decode("utf-8"))
     tag = payload.get("tag_name") or "0.0.0"
     html_url = payload.get("html_url") or f"https://github.com/{REPO}/releases"
-    return str(tag), str(html_url)
+    asset_url = None
+    for asset in payload.get("assets", []) or []:
+        name = (asset.get("name") or "").lower()
+        if "windows" in name or name.endswith(".zip"):
+            asset_url = asset.get("browser_download_url")
+            break
+    return str(tag), str(html_url), asset_url
+
+
+def open_latest_release() -> str:
+    _, release_url, _ = get_latest_release_info()
+    webbrowser.open(release_url)
+    return release_url
+
+
+def download_latest_windows_release(download_dir: Optional[str] = None) -> str:
+    _, release_url, asset_url = get_latest_release_info()
+    if not asset_url:
+        webbrowser.open(release_url)
+        return release_url
+    target_dir = Path(download_dir or os.getcwd())
+    target_dir.mkdir(parents=True, exist_ok=True)
+    target_file = target_dir / "MazeIntDigitizer-Windows.zip"
+    with urllib.request.urlopen(asset_url, timeout=30) as resp, open(target_file, "wb") as out:
+        out.write(resp.read())
+    return str(target_file)
 
 
 def check_for_updates() -> dict:
     current = get_local_version()
     try:
-        latest_tag, release_url = get_latest_release_info()
+        latest_tag, release_url, _ = get_latest_release_info()
     except Exception:
         return {
             "current_version": current,

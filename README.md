@@ -18,19 +18,39 @@ This project converts logo-style artwork into embroidery files such as `.dst`, `
 - Busy mockups or product photos
 - Thin anti-aliased lines unless cleaned up first
 
-## Install from GitHub clone on Linux / ChromeOS
+## Quick install from GitHub on Linux / ChromeOS
+
+Use the included self-healing installer. It detects the OS, creates the proper virtual environment, installs every dependency, validates imports, and recreates the environment if anything fails.
 
 ```bash
 git clone https://github.com/slinkykct/mint-digitizer.git
 cd mint-digitizer
-python3 -m venv .venv
-. .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
-python -m pip install -e .
+python3 install.py
 ```
 
-Then launch the GUI:
+This will create a local environment at `.mazeint_venv` and install the project with all required dependencies.
+
+### Launch after installation
+
+#### Linux / ChromeOS
+
+```bash
+./run_gui.sh
+```
+
+Or launch from the command line:
+
+```bash
+./mazeint-cli your_logo.png output_name --width-mm 100
+```
+
+The repo also installs:
+
+```bash
+./mazeint-update
+```
+
+This checks GitHub for a newer release and can update the app.
 
 ### GitHub Pages / PWA app
 
@@ -48,21 +68,9 @@ To enable Pages in GitHub:
 
 The repo includes a ready-to-use workflow for that deploy.
 
-```bash
-mazeint-gui
-```
-
-Or run the CLI directly:
-
-```bash
-mazeint-digitizer your_logo.png output_name --width-mm 100
-```
-
 ## Install on Windows, Linux, or ChromeOS
 
-The easiest and most reliable option is the self-healing installer.
-
-### Option 1: Self-healing installer (recommended)
+### Recommended: self-healing installer
 
 From the project folder:
 
@@ -81,32 +89,35 @@ python3 install.py
 This installer:
 - detects the current OS automatically
 - creates a project-local virtual environment
-- installs required dependencies
-- installs the package itself
-- rebuilds the environment if anything fails
-- creates a launcher for the GUI
+- installs the required Python dependencies from `requirements.txt`
+- installs the package in editable mode
+- validates that OpenCV, NumPy, Shapely, and pyembroidery all import correctly
+- repairs the environment automatically if anything fails
+- creates GUI and CLI launchers for the user
 
-### Option 2: Manual package install
+### Manual install (fallback)
 
-1. Install Python 3.9+.
-2. Open a terminal in this folder.
-3. Run:
+If you prefer to install manually:
 
 ```bash
-python -m pip install --upgrade pip
-python -m pip install .
+python3 -m venv .mazeint_venv
+. .mazeint_venv/bin/activate
+python -m pip install --upgrade pip setuptools wheel
+python -m pip install -r requirements.txt
+python -m pip install -e .
 ```
 
-On Windows, use `py` instead of `python` if needed:
+On Windows:
 
 ```powershell
-py -m pip install --upgrade pip
-py -m pip install .
+py -m venv .mazeint_venv
+.\.mazeint_venv\Scripts\activate
+py -m pip install --upgrade pip setuptools wheel
+py -m pip install -r requirements.txt
+py -m pip install -e .
 ```
 
-### Launch the GUI
-
-After the installer runs, use:
+### GUI launch commands
 
 #### Windows
 
@@ -120,17 +131,49 @@ run_gui.bat
 ./run_gui.sh
 ```
 
-Or run the module directly:
-
-```bash
-python -m mazeint_digitizer.gui
-```
-
-### Run the CLI
+### CLI launch commands
 
 ```bash
 mazeint-digitizer your_logo.png output_name --width-mm 100
 ```
+
+Or from the repo directly:
+
+```bash
+python -m mazeint_digitizer.core your_logo.png output_name --width-mm 100
+```
+
+## Using other logos
+
+1. Open the GUI.
+2. Choose any flat logo image.
+3. Adjust width, spacing, and stitch threshold.
+4. Click Generate embroidery files.
+5. Export the generated stitch files to the selected folder.
+
+For best results, prepare the logo as:
+
+- clean black and white or a single-color silhouette
+- transparent or plain background
+- solid fills rather than grayscale shading
+- consistent stroke thickness
+
+## CLI example
+
+```bash
+mazeint-digitizer logo.png my_logo --width-mm 100 --row-spacing-mm 0.5 --angle 45
+```
+
+## Basic development
+
+```bash
+python -m pip install -e .[dev]
+python -m pytest
+```
+
+## Notes
+
+This is an auto-digitizer, not a full manual-digitizing suite. It works best on simple, flat artwork and produces a proofing design rather than a production-perfect final file.
 
 ## Using other logos
 
