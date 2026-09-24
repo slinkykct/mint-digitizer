@@ -16,6 +16,8 @@ class MazeIntGUI(tk.Tk):
         self.title("MazeInt Logo Digitizer")
         self.geometry("920x700")
         self.minsize(820, 560)
+        self.configure(bg="#0f172a")
+        self._apply_theme()
 
         self.image_path = tk.StringVar(value="")
         self.output_dir = tk.StringVar(value=os.getcwd())
@@ -33,18 +35,38 @@ class MazeIntGUI(tk.Tk):
 
         self._build_widgets()
 
+    def _apply_theme(self):
+        style = ttk.Style(self)
+        try:
+            style.theme_use("clam")
+        except Exception:
+            pass
+
+        style.configure("TFrame", background="#0f172a")
+        style.configure("Card.TFrame", background="#111827")
+        style.configure("TLabel", background="#0f172a", foreground="#e2e8f0", font=("Segoe UI", 10))
+        style.configure("Header.TLabel", background="#111827", foreground="#f8fafc", font=("Segoe UI", 11, "bold"))
+        style.configure("TEntry", fieldbackground="#f8fafc", foreground="#0f172a", font=("Segoe UI", 10))
+        style.configure("TCheckbutton", background="#0f172a", foreground="#e2e8f0", font=("Segoe UI", 10))
+        style.configure("TButton", padding=(12, 8), font=("Segoe UI", 10, "bold"))
+        style.map("TButton", background=[("active", "#2563eb"), ("!disabled", "#1d4ed8")], foreground=[("active", "#ffffff"), ("!disabled", "#ffffff")])
+        style.configure("Accent.TButton", background="#1d4ed8", foreground="#ffffff", padding=(12, 8), font=("Segoe UI", 10, "bold"))
+        style.map("Accent.TButton", background=[("active", "#1e40af"), ("!disabled", "#1d4ed8")])
+        style.configure("TLabelframe", background="#0f172a", foreground="#e2e8f0")
+        style.configure("TLabelframe.Label", background="#0f172a", foreground="#e2e8f0", font=("Segoe UI", 10, "bold"))
+        style.configure("TText", background="#0f172a", foreground="#e2e8f0")
+
     def _build_widgets(self):
         main = ttk.Frame(self, padding=16)
         main.pack(fill="both", expand=True)
 
         top = ttk.Frame(main)
         top.pack(fill="x")
-        header = ttk.Frame(top)
-        header.pack(fill="x")
-        ttk.Label(header, text="MazeInt Digitizer", font=("Segoe UI", 10, "bold")).pack(side="left")
-        banner = ttk.Frame(header)
-        banner.pack(side="right")
-        ttk.Label(banner, textvariable=self.release_banner, foreground="#ffffff", background="#1d4ed8", padding=(10, 4), font=("Segoe UI", 9, "bold")).pack()
+        header = ttk.Frame(top, style="Card.TFrame")
+        header.pack(fill="x", pady=(0, 10))
+        ttk.Label(header, text="MazeInt Digitizer", style="Header.TLabel").pack(side="left", padx=12, pady=10)
+        banner = tk.Label(header, textvariable=self.release_banner, bg="#1d4ed8", fg="#ffffff", font=("Segoe UI", 9, "bold"), padx=12, pady=5)
+        banner.pack(side="right", padx=(0, 12), pady=10)
         self.version.set("v0.1.0")
         self.release_banner.set("Release v0.1.0")
         ttk.Label(top, text="Image file", font=("Segoe UI", 10, "bold")).pack(anchor="w", pady=(8, 0))
@@ -53,12 +75,12 @@ class MazeIntGUI(tk.Tk):
         ttk.Entry(row1, textvariable=self.image_path).pack(side="left", fill="x", expand=True)
         ttk.Button(row1, text="Browse", command=self.choose_image).pack(side="left", padx=(8, 0))
 
-        settings = ttk.Frame(main)
+        settings = ttk.Frame(main, style="Card.TFrame")
         settings.pack(fill="x", pady=(8, 0))
-        ttk.Label(settings, text="Output settings", font=("Segoe UI", 10, "bold")).pack(anchor="w")
+        ttk.Label(settings, text="Output settings", font=("Segoe UI", 10, "bold")).pack(anchor="w", padx=12, pady=(12, 0))
 
-        grid = ttk.Frame(settings)
-        grid.pack(fill="x", pady=8)
+        grid = ttk.Frame(settings, padding=(12, 8, 12, 12))
+        grid.pack(fill="x")
         opts = [
             ("Output directory", self.output_dir, "dir"),
             ("Output name", self.output_name, "text"),
