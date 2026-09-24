@@ -24,9 +24,11 @@ def test_convert_creates_embroidery_files_from_simple_logo():
             thin_threshold_mm=1.0,
             running_stitch_len_mm=2.0,
             underlay=False,
+            thread_colors=("#ff0000",),
         )
 
         assert len(paths) >= 1
         assert all(os.path.exists(p) for p in paths)
+        assert os.path.exists(f"{out_prefix}_preview.png")
         assert pattern.count_stitches() > 0
         assert n_thin + n_thick >= 1

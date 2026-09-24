@@ -2,6 +2,7 @@
 """Core digitizing logic for MazeInt embroidery generation."""
 
 import argparse
+import os
 from typing import Iterable, List, Tuple
 
 import cv2
@@ -10,7 +11,7 @@ import pyembroidery
 from shapely.affinity import affine_transform
 from shapely.geometry import LineString, Polygon
 
-from pyembroidery import COLOR_CHANGE, END, JUMP, STITCH, TRIM, EmbPattern
+from pyembroidery import COLOR_CHANGE, END, EmbThread, JUMP, STITCH, TRIM, EmbPattern
 
 
 def load_mask(image_path):
@@ -200,10 +201,51 @@ def skeleton_order_path(mask, offset_x, offset_y, step_px):
     return out_segments
 
 
+def hex_to_bgr(hex_color):
+    hex_color = (hex_color or "#000000").strip()
+    if not hex_color.startswith("#"):
+        hex_color = f"#{hex_color}"
+    hex_color = hex_color[1:]
+    if len(hex_color) == 3:
+        hex_color = "".join(ch * 2 for ch in hex_color)
+    if len(hex_color) != 6:
+        return (0, 0, 0)
+    r = int(hex_color[0:2], 16)
+    g = int(hex_color[2:4], 16)
+    b = int(hex_color[4:6], 16)
+    return (b, g, r)
+
+
+def apply_thread_colors(pattern, thread_colors):
+    if not thread_colors:
+        return
+    for color in thread_colors:
+        thread = EmbThread()
+        thread.set_hex_color(color)
+        pattern.add_thread(thread)
+
+
+def generate_preview(mask, outpath, thread_colors=None):
+    if mask is None:
+        return None
+    height, width = mask.shape[:2]
+    preview = np.full((height, width, 3), 255, dtype=np.uint8)
+    binary = (mask > 0).astype(np.uint8) * 255
+    contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if contours:
+        color = hex_to_bgr((thread_colors or ["#000000"])[0])
+        cv2.drawContours(preview, contours, -1, color, 1)
+    cv2.imwrite(outpath, preview)
+    return outpath
+
+
 def build_pattern(mask, out_width_mm=100.0, row_spacing_mm=0.35, angle_deg=45.0,
                    thin_threshold_mm=1.4, running_stitch_len_mm=2.2,
-                   underlay=True, underlay_inset_mm=0.4):
+                   underlay=True, underlay_inset_mm=0.4, thread_colors=None,
+                   use_exact_size=False):
     h, w = mask.shape
+    if use_exact_size:
+        out_width_mm = max(10.0, float(w) / 10.0)
     px_to_units = (out_width_mm * 10.0) / w
     px_per_mm = 10.0 / px_to_units
     row_spacing_px = row_spacing_mm * px_per_mm
@@ -216,6 +258,7 @@ def build_pattern(mask, out_width_mm=100.0, row_spacing_mm=0.35, angle_deg=45.0,
         raise ValueError("No shapes found in image after thresholding.")
 
     pattern = EmbPattern()
+    apply_thread_colors(pattern, thread_colors)
     n_thin = n_thick = 0
 
     def emit_path(path_px):
@@ -261,7 +304,15 @@ def build_pattern(mask, out_width_mm=100.0, row_spacing_mm=0.35, angle_deg=45.0,
 
 def convert(image_path, out_prefix, **kwargs):
     mask = load_mask(image_path)
-    pattern, n_thin, n_thick = build_pattern(mask, **kwargs)
+    thread_colors = kwargs.pop("thread_colors", None)
+    preview_path = kwargs.pop("preview_path", None)
+
+    if kwargs.get("use_exact_size") is None:
+        kwargs["use_exact_size"] = True
+    if kwargs.get("out_width_mm") is None:
+        kwargs["out_width_mm"] = max(10.0, float(mask.shape[1]) / 10.0)
+
+    pattern, n_thin, n_thick = build_pattern(mask, thread_colors=thread_colors, **kwargs)
     formats = {
         "dst": pyembroidery.write_dst,
         "pes": pyembroidery.write_pes,
@@ -273,6 +324,10 @@ def convert(image_path, out_prefix, **kwargs):
         outpath = f"{out_prefix}.{ext}"
         writer(pattern, outpath)
         paths.append(outpath)
+
+    final_preview = preview_path or f"{out_prefix}_preview.png"
+    generate_preview(mask, final_preview, thread_colors)
+    paths.append(final_preview)
     return paths, pattern, n_thin, n_thick
 
 
