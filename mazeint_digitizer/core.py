@@ -15,11 +15,34 @@ from pyembroidery import COLOR_CHANGE, END, EmbThread, JUMP, STITCH, TRIM, EmbPa
 
 
 def load_mask(image_path):
-    img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+    img = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)
     if img is None:
         raise ValueError(f"Could not read {image_path}")
-    _, mask = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    if np.mean(mask == 255) > 0.5:
+
+    if img.ndim == 2:
+        gray = img
+        alpha_mask = None
+    elif img.shape[-1] == 4:
+        bgr = img[:, :, :3]
+        alpha = img[:, :, 3]
+        gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
+        alpha_mask = (alpha > 10).astype(np.uint8) * 255
+        if alpha_mask.mean() > 0.01 and alpha_mask.mean() < 0.99:
+            return alpha_mask
+        if np.any(alpha < 255):
+            gray = np.where(alpha > 10, gray, 0).astype(np.uint8)
+    elif img.shape[-1] == 3:
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        alpha_mask = None
+    else:
+        gray = img.reshape(img.shape[:2])
+        alpha_mask = None
+
+    if gray.dtype != np.uint8:
+        gray = gray.astype(np.uint8)
+
+    _, mask = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    if np.mean(gray > 200) > 0.5 and np.mean(mask == 255) > 0.5:
         mask = cv2.bitwise_not(mask)
     return mask
 
@@ -263,6 +286,49 @@ def normalize_thread_colors(thread_colors):
     return colors or ["#1f2937"]
 
 
+def transform_mask(mask, scale_x=1.0, scale_y=1.0, rotation_deg=0.0, offset_x=0, offset_y=0, mirror_x=False, mirror_y=False):
+    if mask is None:
+        return None
+    mask = np.asarray(mask, dtype=np.uint8)
+    h, w = mask.shape[:2]
+    if scale_x == 1.0 and scale_y == 1.0 and rotation_deg == 0.0 and offset_x == 0 and offset_y == 0 and not mirror_x and not mirror_y:
+        return mask.copy()
+
+    new_w = max(1, int(round(w * scale_x)))
+    new_h = max(1, int(round(h * scale_y)))
+    resized = cv2.resize(mask, (new_w, new_h), interpolation=cv2.INTER_NEAREST)
+    if mirror_x:
+        resized = cv2.flip(resized, 1)
+    if mirror_y:
+        resized = cv2.flip(resized, 0)
+
+    cx, cy = new_w / 2.0, new_h / 2.0
+    theta = np.radians(rotation_deg)
+    cos_t = np.cos(theta)
+    sin_t = np.sin(theta)
+    rot_mat = np.array([
+        [cos_t, -sin_t, (w / 2.0) - cx * cos_t + cy * sin_t],
+        [sin_t, cos_t, (h / 2.0) - cx * sin_t - cy * cos_t],
+    ], dtype=np.float32)
+    rotated = cv2.warpAffine(resized, rot_mat, (w, h), flags=cv2.INTER_NEAREST, borderMode=cv2.BORDER_CONSTANT, borderValue=0)
+
+    if offset_x or offset_y:
+        canvas = np.zeros((h, w), dtype=np.uint8)
+        x0 = int(round(offset_x))
+        y0 = int(round(offset_y))
+        x1 = max(0, x0)
+        y1 = max(0, y0)
+        x2 = min(w, x0 + rotated.shape[1])
+        y2 = min(h, y0 + rotated.shape[0])
+        src_x1 = max(0, -x0)
+        src_y1 = max(0, -y0)
+        src_x2 = src_x1 + (x2 - x1)
+        src_y2 = src_y1 + (y2 - y1)
+        canvas[y1:y2, x1:x2] = rotated[src_y1:src_y2, src_x1:src_x2]
+        return canvas
+    return rotated
+
+
 def apply_thread_colors(pattern, thread_colors):
     colors = normalize_thread_colors(thread_colors)
     for color in colors:
@@ -370,6 +436,17 @@ def build_pattern(mask, out_width_mm=100.0, row_spacing_mm=0.35, angle_deg=45.0,
 
 def convert(image_path, out_prefix, **kwargs):
     mask = load_mask(image_path)
+    scale_x = float(kwargs.pop("shape_scale_x", 1.0))
+    scale_y = float(kwargs.pop("shape_scale_y", 1.0))
+    rotation_deg = float(kwargs.pop("shape_rotation_deg", 0.0))
+    offset_x = int(kwargs.pop("shape_offset_x", 0))
+    offset_y = int(kwargs.pop("shape_offset_y", 0))
+    mirror_x = bool(kwargs.pop("shape_mirror_x", False))
+    mirror_y = bool(kwargs.pop("shape_mirror_y", False))
+    include_artwork = kwargs.pop("include_artwork", True)
+    include_text = kwargs.pop("include_text", True)
+    mask = transform_mask(mask, scale_x=scale_x, scale_y=scale_y, rotation_deg=rotation_deg, offset_x=offset_x, offset_y=offset_y, mirror_x=mirror_x, mirror_y=mirror_y)
+
     thread_colors = kwargs.pop("thread_colors", None)
     text = kwargs.pop("text", "")
     text_font = kwargs.pop("text_font", "Sans")
@@ -386,13 +463,14 @@ def convert(image_path, out_prefix, **kwargs):
     if out_dir:
         os.makedirs(out_dir, exist_ok=True)
 
-    text_mask = render_text_mask(mask.shape, text, text_font, text_size_px)
-    combined_mask = cv2.bitwise_or(mask, text_mask)
+    text_mask = render_text_mask(mask.shape, text, text_font, text_size_px) if include_text else np.zeros_like(mask)
+    artwork_mask = mask if include_artwork else np.zeros_like(mask)
+    combined_mask = cv2.bitwise_or(artwork_mask, text_mask)
     pattern, n_thin, n_thick = build_pattern(
         combined_mask,
         thread_colors=thread_colors,
-        text_mask=text_mask if text else None,
-        text_color=text_color,
+        text_mask=text_mask if (include_text and text) else None,
+        text_color=text_color if (include_text and text) else None,
         **kwargs,
     )
     formats = {

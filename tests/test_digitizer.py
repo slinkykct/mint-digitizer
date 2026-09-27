@@ -4,7 +4,25 @@ import tempfile
 import cv2
 import numpy as np
 
-from mazeint_digitizer.core import convert
+from mazeint_digitizer.core import convert, load_mask
+
+
+def test_load_mask_preserves_transparent_logo_shape():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        path = os.path.join(tmpdir, "transparent_logo.png")
+        img = np.zeros((80, 120, 4), dtype=np.uint8)
+        img[:, :, 3] = 0
+        cv2.rectangle(img, (18, 18), (76, 62), (255, 255, 255, 255), thickness=-1)
+        cv2.circle(img, (95, 36), 18, (255, 255, 255, 255), thickness=-1)
+        cv2.imwrite(path, img)
+
+        mask = load_mask(path)
+        ys, xs = np.where(mask > 0)
+
+        assert mask.shape == (80, 120)
+        assert xs.size > 0
+        assert xs.min() <= 18 and ys.min() <= 18
+        assert xs.max() >= 95 and ys.max() >= 62
 
 
 def test_convert_creates_embroidery_files_from_simple_logo():
