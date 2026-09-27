@@ -178,16 +178,17 @@ class MazeIntGUI(tk.Tk):
         shape_controls = ttk.Frame(settings)
         shape_controls.pack(fill="x", pady=(4, 8))
         ttk.Label(shape_controls, text="Scale %").grid(row=0, column=0, sticky="w", padx=(0, 6), pady=4)
-        ttk.Spinbox(shape_controls, from_=25, to=300, textvariable=self.shape_scale, width=6, command=self._refresh_preview_if_image_loaded).grid(row=0, column=1, sticky="w", pady=4)
+        ttk.Spinbox(shape_controls, from_=25, to=300, textvariable=self.shape_scale, width=8, command=self._refresh_preview_if_image_loaded).grid(row=0, column=1, sticky="w", pady=4)
         ttk.Label(shape_controls, text="Rotate").grid(row=0, column=2, sticky="w", padx=(12, 6), pady=4)
-        ttk.Spinbox(shape_controls, from_=-180, to=180, textvariable=self.shape_rotation_deg, width=6, command=self._refresh_preview_if_image_loaded).grid(row=0, column=3, sticky="w", pady=4)
+        ttk.Spinbox(shape_controls, from_=-180, to=180, textvariable=self.shape_rotation_deg, width=8, command=self._refresh_preview_if_image_loaded).grid(row=0, column=3, sticky="w", pady=4)
         ttk.Label(shape_controls, text="X").grid(row=1, column=0, sticky="w", padx=(0, 6), pady=4)
-        ttk.Spinbox(shape_controls, from_=-500, to=500, textvariable=self.shape_offset_x, width=6, command=self._refresh_preview_if_image_loaded).grid(row=1, column=1, sticky="w", pady=4)
+        ttk.Spinbox(shape_controls, from_=-500, to=500, textvariable=self.shape_offset_x, width=8, command=self._refresh_preview_if_image_loaded).grid(row=1, column=1, sticky="w", pady=4)
         ttk.Label(shape_controls, text="Y").grid(row=1, column=2, sticky="w", padx=(12, 6), pady=4)
-        ttk.Spinbox(shape_controls, from_=-500, to=500, textvariable=self.shape_offset_y, width=6, command=self._refresh_preview_if_image_loaded).grid(row=1, column=3, sticky="w", pady=4)
+        ttk.Spinbox(shape_controls, from_=-500, to=500, textvariable=self.shape_offset_y, width=8, command=self._refresh_preview_if_image_loaded).grid(row=1, column=3, sticky="w", pady=4)
         ttk.Checkbutton(shape_controls, text="Flip X", variable=self.shape_mirror_x, command=self._refresh_preview_if_image_loaded).grid(row=2, column=0, sticky="w", pady=(4, 0))
         ttk.Checkbutton(shape_controls, text="Flip Y", variable=self.shape_mirror_y, command=self._refresh_preview_if_image_loaded).grid(row=2, column=2, sticky="w", pady=(4, 0))
-        ttk.Button(shape_controls, text="Reset transform", command=self.reset_shape_transform).grid(row=3, column=0, columnspan=4, sticky="ew", pady=(8, 0))
+        ttk.Button(shape_controls, text="Center layer", command=self.center_selected_layer).grid(row=3, column=0, columnspan=2, sticky="ew", pady=(8, 4))
+        ttk.Button(shape_controls, text="Reset transform", command=self.reset_shape_transform).grid(row=3, column=2, columnspan=2, sticky="ew", pady=(8, 4))
 
         ttk.Separator(settings).pack(fill="x", pady=8)
         ttk.Label(settings, text="Layers", style="Section.TLabel").pack(anchor="w")
@@ -200,11 +201,17 @@ class MazeIntGUI(tk.Tk):
         ttk.Label(settings, text="Layer tools", style="Section.TLabel").pack(anchor="w")
         layer_controls = ttk.Frame(settings)
         layer_controls.pack(fill="x", pady=(4, 6))
-        ttk.Button(layer_controls, text="Artwork", command=lambda: self.select_edit_layer("Artwork")).pack(side="left")
-        ttk.Button(layer_controls, text="Text", command=lambda: self.select_edit_layer("Text")).pack(side="left", padx=(8, 0))
+        self.layer_buttons = {}
+        self.layer_buttons["Artwork"] = ttk.Button(layer_controls, text="Artwork", command=lambda: self.select_edit_layer("Artwork"), style="TButton")
+        self.layer_buttons["Artwork"].pack(side="left")
+        self.layer_buttons["Text"] = ttk.Button(layer_controls, text="Text", command=lambda: self.select_edit_layer("Text"), style="TButton")
+        self.layer_buttons["Text"].pack(side="left", padx=(8, 0))
         ttk.Checkbutton(layer_controls, text="Snap", variable=self.grid_snap, command=self._refresh_preview_if_image_loaded).pack(side="left", padx=(12, 0))
         ttk.Button(layer_controls, text="Rot -90", command=lambda: self.rotate_selected_layer(-90)).pack(side="left", padx=(12, 0))
         ttk.Button(layer_controls, text="Rot +90", command=lambda: self.rotate_selected_layer(90)).pack(side="left", padx=(8, 0))
+        self.active_layer_label = ttk.Label(layer_controls, text="Active: Artwork", foreground="#f8fafc")
+        self.active_layer_label.pack(side="left", padx=(12, 0))
+        self._update_layer_buttons()
 
         ttk.Separator(settings).pack(fill="x", pady=8)
         ttk.Label(settings, text="Text layer", style="Section.TLabel").pack(anchor="w")
@@ -314,9 +321,17 @@ class MazeIntGUI(tk.Tk):
         self.underlay.set(preset["underlay"])
         self._refresh_preview_if_image_loaded()
 
+    def _update_layer_buttons(self):
+        current = self.selected_layer.get()
+        for name, button in self.layer_buttons.items():
+            button.configure(style="Accent.TButton" if name == current else "TButton")
+        if hasattr(self, "active_layer_label"):
+            self.active_layer_label.configure(text=f"Active: {current}")
+
     def select_edit_layer(self, layer_name):
         self.selected_layer.set(layer_name)
         self._apply_layer_transform_to_controls(self._layer_transform_state.get(layer_name, self._default_layer_transform()))
+        self._update_layer_buttons()
         self._refresh_preview_if_image_loaded()
 
     def rotate_selected_layer(self, delta_deg):
@@ -363,12 +378,92 @@ class MazeIntGUI(tk.Tk):
             self._update_text_color_button()
             self._refresh_text_preview()
 
+    def center_selected_layer(self):
+        image_path = self.image_path.get().strip()
+        if not image_path:
+            return
+        try:
+            import cv2
+            layer_name = self.selected_layer.get()
+            base_mask = self._layer_content_mask_for_preview(image_path, layer_name)
+            if base_mask is None or base_mask.size == 0:
+                return
+            contours, _ = cv2.findContours(base_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            if not contours:
+                return
+            largest = max(contours, key=cv2.contourArea)
+            x, y, w, h = cv2.boundingRect(largest)
+            center_x = x + (w / 2.0)
+            center_y = y + (h / 2.0)
+            canvas_center_x = base_mask.shape[1] / 2.0
+            canvas_center_y = base_mask.shape[0] / 2.0
+            dx = int(round(canvas_center_x - center_x))
+            dy = int(round(canvas_center_y - center_y))
+            state = self._layer_transform_state.setdefault(layer_name, self._default_layer_transform())
+            state["offset_x"] = int(state.get("offset_x", 0)) + dx
+            state["offset_y"] = int(state.get("offset_y", 0)) + dy
+            self._apply_layer_transform_to_controls(state)
+            self._refresh_preview_if_image_loaded()
+        except Exception:
+            pass
+
+    def _sync_selected_layer_controls(self):
+        active_layer = self.selected_layer.get()
+        state = self._layer_transform_state.get(active_layer, self._default_layer_transform())
+        self._apply_layer_transform_to_controls(state)
+        self._refresh_preview_if_image_loaded()
+
     def reset_shape_transform(self):
         layer_name = self.selected_layer.get()
         reset_state = self._default_layer_transform()
         self._layer_transform_state[layer_name] = reset_state
         self._apply_layer_transform_to_controls(reset_state)
         self._refresh_preview_if_image_loaded()
+
+    def _layer_content_mask_for_preview(self, image_path, layer_name):
+        import cv2
+        from .core import load_mask, render_text_mask, transform_mask
+        original = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)
+        if original is None:
+            return None
+        if original.ndim == 2:
+            gray = original
+        elif original.shape[-1] == 4:
+            gray = cv2.cvtColor(original[:, :, :3], cv2.COLOR_BGR2GRAY)
+        else:
+            gray = cv2.cvtColor(original, cv2.COLOR_BGR2GRAY)
+
+        mask = load_mask(image_path)
+        state = self._layer_transform_state.get(layer_name, self._default_layer_transform())
+        if layer_name == "Text":
+            text = self.text_value.get().strip()
+            if not text:
+                return np.zeros_like(mask)
+            text_mask = render_text_mask(gray.shape, text, self.text_font.get(), self.text_size_px.get())
+            text_mask = transform_mask(
+                text_mask,
+                scale_x=max(0.25, float(state.get("scale", 100.0)) / 100.0),
+                scale_y=max(0.25, float(state.get("scale", 100.0)) / 100.0),
+                rotation_deg=float(state.get("rotation_deg", 0.0)),
+                offset_x=int(state.get("offset_x", 0)),
+                offset_y=int(state.get("offset_y", 0)),
+                mirror_x=bool(state.get("mirror_x", False)),
+                mirror_y=bool(state.get("mirror_y", False)),
+            )
+            return text_mask
+
+        if not self.artwork_layer_enabled.get():
+            return np.zeros_like(mask)
+        return transform_mask(
+            mask,
+            scale_x=max(0.25, float(state.get("scale", 100.0)) / 100.0),
+            scale_y=max(0.25, float(state.get("scale", 100.0)) / 100.0),
+            rotation_deg=float(state.get("rotation_deg", 0.0)),
+            offset_x=int(state.get("offset_x", 0)),
+            offset_y=int(state.get("offset_y", 0)),
+            mirror_x=bool(state.get("mirror_x", False)),
+            mirror_y=bool(state.get("mirror_y", False)),
+        )
 
     def _refresh_preview_if_image_loaded(self):
         self._update_text_color_button()
@@ -554,10 +649,48 @@ class MazeIntGUI(tk.Tk):
             self.preview_drag_layer.delete("all")
             self.preview_drag_layer.configure(width=target_w, height=target_h)
             self.preview_drag_layer.create_image(0, 0, anchor="nw", image=self.preview_image)
-            cx, cy = target_w / 2, target_h / 2
-            self.preview_drag_layer.create_rectangle(10, 10, target_w - 10, target_h - 10, outline="#f8fafc", dash=(5, 5), width=2, tags=("selection-box",))
-            for x, y, tag in ((cx, cy, "move"), (cx + target_w * 0.45, cy, "scale"), (cx, cy - target_h * 0.45, "rotate")):
-                self.preview_drag_layer.create_oval(x - 6, y - 6, x + 6, y + 6, fill="#f8fafc", outline="#0f172a", tags=(tag, "handle"))
+
+            layer_name = self.selected_layer.get()
+            focus_mask = mask
+            if layer_name == "Text" and text:
+                focus_mask = render_text_mask(gray.shape, text, self.text_font.get(), self.text_size_px.get())
+                if self.text_layer_enabled.get():
+                    focus_mask = transform_mask(
+                        focus_mask,
+                        scale_x=text_scale,
+                        scale_y=text_scale,
+                        rotation_deg=float(text_state["rotation_deg"]),
+                        offset_x=int(text_state["offset_x"]),
+                        offset_y=int(text_state["offset_y"]),
+                        mirror_x=bool(text_state["mirror_x"]),
+                        mirror_y=bool(text_state["mirror_y"]),
+                    )
+            elif not self.artwork_layer_enabled.get():
+                focus_mask = np.zeros_like(mask)
+
+            selection_contours, _ = cv2.findContours(focus_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            if selection_contours:
+                largest = max(selection_contours, key=cv2.contourArea)
+                x, y, box_w, box_h = cv2.boundingRect(largest)
+                pad = 12
+                left = max(0, x - pad)
+                top = max(0, y - pad)
+                right = min(focus_mask.shape[1], x + box_w + pad)
+                bottom = min(focus_mask.shape[0], y + box_h + pad)
+                lx = left * (target_w / max(1, focus_mask.shape[1]))
+                ly = top * (target_h / max(1, focus_mask.shape[0]))
+                rx = right * (target_w / max(1, focus_mask.shape[1]))
+                by = bottom * (target_h / max(1, focus_mask.shape[0]))
+                cx = (lx + rx) / 2.0
+                cy = (ly + by) / 2.0
+                self.preview_drag_layer.create_rectangle(lx, ly, rx, by, outline="#f8fafc", dash=(5, 5), width=2, tags=("selection-box",))
+                for px, py, tag in ((cx, cy, "move"), (rx, cy, "scale"), (cx, ly, "rotate")):
+                    self.preview_drag_layer.create_oval(px - 6, py - 6, px + 6, py + 6, fill="#f8fafc", outline="#0f172a", tags=(tag, "handle"))
+            else:
+                cx, cy = target_w / 2, target_h / 2
+                self.preview_drag_layer.create_rectangle(10, 10, target_w - 10, target_h - 10, outline="#f8fafc", dash=(5, 5), width=2, tags=("selection-box",))
+                for px, py, tag in ((cx, cy, "move"), (cx + target_w * 0.45, cy, "scale"), (cx, cy - target_h * 0.45, "rotate")):
+                    self.preview_drag_layer.create_oval(px - 6, py - 6, px + 6, py + 6, fill="#f8fafc", outline="#0f172a", tags=(tag, "handle"))
             if self.selected_layer.get() == "Text":
                 self.preview_drag_layer.itemconfigure("selection-box", outline="#f59e0b")
             else:
@@ -643,6 +776,8 @@ class MazeIntGUI(tk.Tk):
         try:
             self.log_message("Processing image...")
             self.update_idletasks()
+            artwork_state = self._layer_transform_state.get("Artwork", self._default_layer_transform())
+            text_state = self._layer_transform_state.get("Text", self._default_layer_transform())
             paths, pattern, n_thin, n_thick = convert(
                 image_file,
                 out_prefix,
@@ -653,13 +788,27 @@ class MazeIntGUI(tk.Tk):
                 running_stitch_len_mm=float(self.running_stitch_len_mm.get()),
                 underlay=bool(self.underlay.get()),
                 use_exact_size=bool(self.use_exact_size.get()),
-                shape_scale_x=max(0.25, float(self.shape_scale.get()) / 100.0),
-                shape_scale_y=max(0.25, float(self.shape_scale.get()) / 100.0),
-                shape_rotation_deg=float(self.shape_rotation_deg.get()),
-                shape_offset_x=int(self.shape_offset_x.get()),
-                shape_offset_y=int(self.shape_offset_y.get()),
-                shape_mirror_x=bool(self.shape_mirror_x.get()),
-                shape_mirror_y=bool(self.shape_mirror_y.get()),
+                shape_scale_x=max(0.25, float(artwork_state.get("scale", 100.0)) / 100.0),
+                shape_scale_y=max(0.25, float(artwork_state.get("scale", 100.0)) / 100.0),
+                shape_rotation_deg=float(artwork_state.get("rotation_deg", 0.0)),
+                shape_offset_x=int(artwork_state.get("offset_x", 0)),
+                shape_offset_y=int(artwork_state.get("offset_y", 0)),
+                shape_mirror_x=bool(artwork_state.get("mirror_x", False)),
+                shape_mirror_y=bool(artwork_state.get("mirror_y", False)),
+                artwork_scale_x=max(0.25, float(artwork_state.get("scale", 100.0)) / 100.0),
+                artwork_scale_y=max(0.25, float(artwork_state.get("scale", 100.0)) / 100.0),
+                artwork_rotation_deg=float(artwork_state.get("rotation_deg", 0.0)),
+                artwork_offset_x=int(artwork_state.get("offset_x", 0)),
+                artwork_offset_y=int(artwork_state.get("offset_y", 0)),
+                artwork_mirror_x=bool(artwork_state.get("mirror_x", False)),
+                artwork_mirror_y=bool(artwork_state.get("mirror_y", False)),
+                text_scale_x=max(0.25, float(text_state.get("scale", 100.0)) / 100.0),
+                text_scale_y=max(0.25, float(text_state.get("scale", 100.0)) / 100.0),
+                text_rotation_deg=float(text_state.get("rotation_deg", 0.0)),
+                text_offset_x=int(text_state.get("offset_x", 0)),
+                text_offset_y=int(text_state.get("offset_y", 0)),
+                text_mirror_x=bool(text_state.get("mirror_x", False)),
+                text_mirror_y=bool(text_state.get("mirror_y", False)),
                 include_artwork=bool(self.artwork_layer_enabled.get()),
                 include_text=bool(self.text_layer_enabled.get()),
                 thread_colors=colors,

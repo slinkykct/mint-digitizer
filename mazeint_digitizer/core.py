@@ -443,9 +443,29 @@ def convert(image_path, out_prefix, **kwargs):
     offset_y = int(kwargs.pop("shape_offset_y", 0))
     mirror_x = bool(kwargs.pop("shape_mirror_x", False))
     mirror_y = bool(kwargs.pop("shape_mirror_y", False))
+
+    artwork_scale_x = float(kwargs.pop("artwork_scale_x", scale_x))
+    artwork_scale_y = float(kwargs.pop("artwork_scale_y", scale_y))
+    artwork_rotation_deg = float(kwargs.pop("artwork_rotation_deg", rotation_deg))
+    artwork_offset_x = int(kwargs.pop("artwork_offset_x", offset_x))
+    artwork_offset_y = int(kwargs.pop("artwork_offset_y", offset_y))
+    artwork_mirror_x = bool(kwargs.pop("artwork_mirror_x", mirror_x))
+    artwork_mirror_y = bool(kwargs.pop("artwork_mirror_y", mirror_y))
+
     include_artwork = kwargs.pop("include_artwork", True)
     include_text = kwargs.pop("include_text", True)
-    mask = transform_mask(mask, scale_x=scale_x, scale_y=scale_y, rotation_deg=rotation_deg, offset_x=offset_x, offset_y=offset_y, mirror_x=mirror_x, mirror_y=mirror_y)
+    artwork_mask = transform_mask(
+        mask,
+        scale_x=artwork_scale_x,
+        scale_y=artwork_scale_y,
+        rotation_deg=artwork_rotation_deg,
+        offset_x=artwork_offset_x,
+        offset_y=artwork_offset_y,
+        mirror_x=artwork_mirror_x,
+        mirror_y=artwork_mirror_y,
+    )
+    if not include_artwork:
+        artwork_mask = np.zeros_like(mask)
 
     thread_colors = kwargs.pop("thread_colors", None)
     text = kwargs.pop("text", "")
@@ -454,17 +474,36 @@ def convert(image_path, out_prefix, **kwargs):
     text_color = kwargs.pop("text_color", None)
     preview_path = kwargs.pop("preview_path", None)
 
+    text_scale_x = float(kwargs.pop("text_scale_x", 1.0))
+    text_scale_y = float(kwargs.pop("text_scale_y", 1.0))
+    text_rotation_deg = float(kwargs.pop("text_rotation_deg", 0.0))
+    text_offset_x = int(kwargs.pop("text_offset_x", 0))
+    text_offset_y = int(kwargs.pop("text_offset_y", 0))
+    text_mirror_x = bool(kwargs.pop("text_mirror_x", False))
+    text_mirror_y = bool(kwargs.pop("text_mirror_y", False))
+
     if kwargs.get("use_exact_size") is None:
         kwargs["use_exact_size"] = True
     if kwargs.get("out_width_mm") is None:
-        kwargs["out_width_mm"] = max(10.0, float(mask.shape[1]) / 10.0)
+        kwargs["out_width_mm"] = max(10.0, float(artwork_mask.shape[1]) / 10.0)
 
     out_dir = os.path.dirname(out_prefix)
     if out_dir:
         os.makedirs(out_dir, exist_ok=True)
 
-    text_mask = render_text_mask(mask.shape, text, text_font, text_size_px) if include_text else np.zeros_like(mask)
-    artwork_mask = mask if include_artwork else np.zeros_like(mask)
+    text_mask = np.zeros_like(mask)
+    if include_text and text:
+        text_mask = render_text_mask(mask.shape, text, text_font, text_size_px)
+        text_mask = transform_mask(
+            text_mask,
+            scale_x=text_scale_x,
+            scale_y=text_scale_y,
+            rotation_deg=text_rotation_deg,
+            offset_x=text_offset_x,
+            offset_y=text_offset_y,
+            mirror_x=text_mirror_x,
+            mirror_y=text_mirror_y,
+        )
     combined_mask = cv2.bitwise_or(artwork_mask, text_mask)
     pattern, n_thin, n_thick = build_pattern(
         combined_mask,
