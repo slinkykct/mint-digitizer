@@ -306,7 +306,7 @@ class MazeIntGUI(tk.Tk):
     def _save_active_layer_transform(self):
         self._layer_transform_state[self.selected_layer.get()] = self._read_layer_transform_from_controls()
 
-    def apply_stitch_preset(self, preset_name):
+    def _apply_stitch_preset(self, preset_name):
         presets = {
             "Light": {"row_spacing_mm": 1.5, "thin_threshold_mm": 2.0, "running_stitch_len_mm": 2.8, "angle_deg": 45.0, "underlay": False},
             "Standard": {"row_spacing_mm": 1.2, "thin_threshold_mm": 1.4, "running_stitch_len_mm": 2.2, "angle_deg": 45.0, "underlay": True},
@@ -320,6 +320,9 @@ class MazeIntGUI(tk.Tk):
         self.angle_deg.set(preset["angle_deg"])
         self.underlay.set(preset["underlay"])
         self._refresh_preview_if_image_loaded()
+
+    def apply_stitch_preset(self, preset_name):
+        self._apply_stitch_preset(preset_name)
 
     def _update_layer_buttons(self):
         current = self.selected_layer.get()
